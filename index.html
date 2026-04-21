@@ -4,510 +4,368 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>🌴 巴厘島分攤 bali0423</title>
+  
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- 使用標準版 Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" crossorigin="anonymous">
+  
+  <!-- 使用 Compat 版本 SDK，並加入 crossorigin 解決 Script error 屏蔽問題 -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" crossorigin="anonymous"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js" crossorigin="anonymous"></script>
+
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     
     body { 
       font-family: 'Noto Sans TC', system-ui, -apple-system, sans-serif; 
       -webkit-tap-highlight-color: transparent;
-      overscroll-behavior-y: contain; /* 防止下拉刷新干擾 */
+      margin: 0; padding: 0; overflow: hidden;
+      background-color: #0f172a;
     }
     
-    .tab-btn.active { @apply border-b-4 border-indigo-600 text-indigo-600 font-bold; }
-    
-    /* 修正內容高度與捲動，適應各種螢幕 */
-    .main-content { 
-      height: calc(100vh - 180px); /* 扣除 Header 和 Nav 的預估高度 */
-      overflow-y: auto; 
-      -webkit-overflow-scrolling: touch;
-      padding-bottom: 40px;
+    .app-container {
+      display: flex; flex-direction: column; height: 100vh; width: 100%;
+      max-width: 450px; margin: 0 auto; background: #ffffff; position: relative;
     }
-    
+
+    .tab-btn.active { color: #4f46e5; font-weight: 700; border-bottom: 4px solid #4f46e5; }
+    .main-content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #f8fafc; padding: 20px; }
     .page { display: none; }
-    .page.active { display: block; animation: slideUp 0.3s ease-out; }
+    .page.active { display: block; }
+    .glass-card { background: white; border: 1px solid #f1f5f9; border-radius: 24px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 16px; }
     
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(15px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .glass-card {
-      @apply bg-white/90 backdrop-blur-md border border-white/20 shadow-sm rounded-3xl;
-    }
-
-    /* 美化捲軸 */
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    .main-content::-webkit-scrollbar { width: 0px; }
   </style>
 </head>
-<body class="bg-[#f8fafc] text-slate-800 antialiased">
+<body>
 
-  <div class="max-w-md mx-auto min-h-screen flex flex-col relative bg-white shadow-2xl overflow-hidden">
-    
-    <!-- 奢華海島風標頭 -->
-    <header class="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600 text-white p-6 pt-8 shadow-lg shrink-0">
-      <div class="flex justify-between items-start">
+  <div class="app-container shadow-2xl">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-indigo-600 to-violet-600 text-white p-6 pt-10 shrink-0">
+      <div class="flex justify-between items-center">
         <div>
-          <h1 class="text-2xl font-black tracking-tight flex items-center gap-2">
-            <span>BALI 2024</span>
-            <span class="text-sm font-normal bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-md">bali0423</span>
-          </h1>
-          <p class="text-indigo-100/80 text-xs mt-1 font-medium tracking-widest uppercase">Travel Settlement System</p>
+          <h1 class="text-xl font-black tracking-tight">BALI 2024</h1>
+          <p class="text-[10px] opacity-80 font-bold uppercase tracking-widest">Settlement System</p>
         </div>
-        <div class="bg-white/20 p-2 rounded-2xl backdrop-blur-xl">
-            <i class="fa-solid fa-palm-tree text-xl"></i>
-        </div>
+        <i class="fa-solid fa-umbrella-beach text-2xl opacity-50"></i>
       </div>
     </header>
 
-    <!-- 導航列 -->
-    <nav class="flex bg-white border-b border-slate-100 sticky top-0 z-30 shadow-sm shrink-0">
-      <button onclick="switchTab(0)" class="tab-btn active flex-1 py-4 text-[11px] transition-all" id="tab0">
-        <i class="fa-solid fa-pen-to-square mb-1 block text-lg"></i>記帳
+    <!-- 導覽列 -->
+    <nav class="flex bg-white border-b border-slate-100 z-30 shrink-0">
+      <button onclick="switchTab(0)" class="tab-btn active flex-1 py-4 text-[11px]" id="tab0">
+        <i class="fa-solid fa-edit mb-1 block text-lg"></i>記帳
       </button>
-      <button onclick="switchTab(1)" class="tab-btn flex-1 py-4 text-[11px] transition-all" id="tab1">
-        <i class="fa-solid fa-receipt mb-1 block text-lg"></i>帳單
+      <button onclick="switchTab(1)" class="tab-btn flex-1 py-4 text-[11px]" id="tab1">
+        <i class="fa-solid fa-list mb-1 block text-lg"></i>帳單
       </button>
-      <button onclick="switchTab(2)" class="tab-btn flex-1 py-4 text-[11px] transition-all" id="tab2">
-        <i class="fa-solid fa-scale-balanced mb-1 block text-lg"></i>結算
+      <button onclick="switchTab(2)" class="tab-btn flex-1 py-4 text-[11px]" id="tab2">
+        <i class="fa-solid fa-calculator mb-1 block text-lg"></i>結算
       </button>
-      <button onclick="switchTab(3)" class="tab-btn flex-1 py-4 text-[11px] transition-all" id="tab3">
-        <i class="fa-solid fa-trash-can mb-1 block text-lg"></i>已刪
+      <button onclick="switchTab(3)" class="tab-btn flex-1 py-4 text-[11px]" id="tab3">
+        <i class="fa-solid fa-trash mb-1 block text-lg"></i>回收
       </button>
     </nav>
 
-    <!-- 內容區塊：增加捲動處理 -->
-    <main class="main-content p-5 space-y-6 bg-slate-50/50">
-      
-      <!-- 1. 記帳頁 -->
-      <div id="page0" class="page active space-y-5">
-        <div class="flex bg-slate-200/50 p-1 rounded-2xl gap-1">
-          <button onclick="setType(0)" id="typeBtn0" class="flex-1 py-3 rounded-xl font-bold transition-all bg-white shadow-sm text-indigo-600">個人</button>
-          <button onclick="setType(1)" id="typeBtn1" class="flex-1 py-3 rounded-xl font-bold transition-all text-slate-500">公費支出</button>
-          <button onclick="setType(2)" id="typeBtn2" class="flex-1 py-3 rounded-xl font-bold transition-all text-slate-500">公費收入</button>
+    <!-- 主內容區 -->
+    <main class="main-content">
+      <div id="page0" class="page active space-y-4">
+        <div class="flex bg-slate-100 p-1 rounded-2xl">
+          <button onclick="setType(0)" id="typeBtn0" class="flex-1 py-3 rounded-xl font-bold bg-white shadow-sm text-indigo-600 text-sm">個人付款</button>
+          <button onclick="setType(1)" id="typeBtn1" class="flex-1 py-3 rounded-xl font-bold text-slate-500 text-sm">公費支出</button>
+          <button onclick="setType(2)" id="typeBtn2" class="flex-1 py-3 rounded-xl font-bold text-slate-500 text-sm">公費存入</button>
         </div>
 
-        <div class="glass-card p-5 space-y-4">
-          <div class="relative">
-            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">📝</span>
-            <input id="title" class="w-full bg-slate-50 border-none rounded-2xl pl-11 pr-4 py-4 focus:ring-2 focus:ring-indigo-500 transition-all text-base" placeholder="項目名稱 (例如: 晚餐)">
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div class="relative">
-              <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">💰</span>
-              <input id="amount" type="number" step="0.01" class="w-full bg-slate-50 border-none rounded-2xl pl-11 pr-4 py-4 focus:ring-2 focus:ring-emerald-500 transition-all text-base" placeholder="金額">
-            </div>
-            <select id="currency" class="w-full bg-slate-50 border-none rounded-2xl px-4 py-4 focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700">
+        <div class="glass-card space-y-4">
+          <input id="title" class="w-full bg-slate-50 border-none rounded-xl px-4 py-4 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="項目名稱">
+          <div class="grid grid-cols-2 gap-2">
+            <input id="amount" type="number" inputmode="decimal" class="w-full bg-slate-50 border-none rounded-xl px-4 py-4" placeholder="金額">
+            <select id="currency" class="w-full bg-slate-50 border-none rounded-xl px-2 py-4 font-bold">
               <option value="IDR">印尼盾 IDR</option>
               <option value="TWD">台幣 TWD</option>
-              <option value="USD">美元 USD</option>
             </select>
           </div>
-
-          <div class="space-y-2">
-            <label class="text-xs font-bold text-slate-500 uppercase ml-1">付款人</label>
-            <select id="payer" class="w-full bg-slate-100 border-none rounded-2xl px-4 py-4 font-bold text-indigo-600"></select>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 mb-1 block">付款人</label>
+            <select id="payer" class="w-full bg-slate-100 border-none rounded-xl px-4 py-4 font-bold text-indigo-600"></select>
           </div>
         </div>
 
-        <div class="glass-card p-5 space-y-4">
+        <div class="glass-card space-y-3">
           <div class="flex justify-between items-center">
-            <h3 class="font-bold text-slate-700 flex items-center gap-2">
-              <i class="fa-solid fa-users text-indigo-500"></i> 分攤成員
-            </h3>
-            <div class="flex gap-2">
-              <button onclick="selectAll(true)" class="text-[10px] bg-slate-100 px-2 py-1 rounded-md font-bold text-slate-600">全選</button>
-              <button onclick="selectAll(false)" class="text-[10px] bg-slate-100 px-2 py-1 rounded-md font-bold text-slate-600">清空</button>
-            </div>
+            <h3 class="font-bold text-sm text-slate-700">分攤成員</h3>
+            <button onclick="toggleAllMembers()" class="text-[10px] text-indigo-600 font-bold">全選/取消</button>
           </div>
           <div id="memberList" class="grid grid-cols-2 gap-2"></div>
-          
-          <div class="pt-2 flex gap-2">
-            <input id="newMemberInput" class="flex-1 bg-slate-50 border-none rounded-xl px-4 py-3 text-sm" placeholder="新增新成員姓名">
-            <button onclick="addMember()" class="bg-slate-800 text-white px-4 rounded-xl text-sm font-bold active:scale-95 transition-all">
-                <i class="fa-solid fa-plus"></i>
-            </button>
-          </div>
         </div>
 
-        <div class="glass-card p-5">
-           <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
-           <button onclick="document.getElementById('cameraInput').click()" class="w-full border-2 border-dashed border-slate-200 rounded-2xl py-8 text-slate-400 hover:bg-slate-50 transition-all flex flex-col items-center gap-2">
-              <i class="fa-solid fa-camera text-2xl"></i>
-              <span class="text-sm font-medium">拍攝或上傳收據</span>
-           </button>
-           <img id="preview" class="hidden mt-4 w-full rounded-2xl shadow-lg border-4 border-white">
-        </div>
-
-        <button onclick="addExpense()" class="w-full bg-indigo-600 text-white font-black py-5 rounded-3xl text-lg shadow-xl shadow-indigo-200 active:scale-95 transition-all flex items-center justify-center gap-2">
-          <i class="fa-solid fa-cloud-arrow-up"></i> 儲存此筆紀錄
+        <button onclick="addExpense()" class="w-full bg-indigo-600 text-white font-black py-5 rounded-3xl text-lg shadow-lg active:scale-95 transition-transform">
+          儲存紀錄
         </button>
       </div>
 
-      <!-- 2. 帳單頁 -->
-      <div id="page1" class="page hidden">
-        <div id="expenseList" class="space-y-4 pb-10"></div>
-      </div>
-
-      <!-- 3. 結算頁 -->
-      <div id="page2" class="page hidden space-y-6 pb-10">
-        <div id="settlementStats"></div>
-        <div id="balanceList" class="space-y-3"></div>
-      </div>
-
-      <!-- 4. 已刪除頁 -->
-      <div id="page3" class="page hidden pb-10">
-        <div id="deletedList" class="space-y-4"></div>
-      </div>
-
+      <div id="page1" class="page"><div id="expenseList" class="pb-10 space-y-3"></div></div>
+      <div id="page2" class="page space-y-4"><div id="settlementStats"></div><div id="balanceList" class="pb-10 space-y-2"></div></div>
+      <div id="page3" class="page space-y-3"><div id="deletedList" class="pb-10"></div></div>
     </main>
 
-    <!-- Toast 提示 -->
-    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white px-6 py-3 rounded-full shadow-2xl z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center gap-3">
-        <i class="fa-solid fa-check-circle text-emerald-400"></i>
-        <span id="toastMsg" class="text-sm font-bold"></span>
+    <!-- 載入動畫 -->
+    <div id="loading" class="absolute inset-0 bg-white/95 z-[100] flex flex-col items-center justify-center">
+        <div class="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p id="loadingStatus" class="text-indigo-600 font-bold text-sm">連線資料庫中...</p>
+        <button onclick="showLoading(false)" class="mt-8 text-[10px] text-slate-400 underline">手動進入</button>
     </div>
 
-    <!-- 加載遮罩 -->
-    <div id="loading" class="absolute inset-0 bg-white/90 backdrop-blur-sm z-[100] flex items-center justify-center hidden">
-        <div class="flex flex-col items-center gap-4">
-            <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-            <p class="text-indigo-600 font-bold animate-pulse">數據同步中...</p>
-        </div>
-    </div>
+    <!-- 通知 -->
+    <div id="toast" class="fixed bottom-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full text-xs font-bold z-[110] opacity-0 pointer-events-none transition-all"></div>
   </div>
 
 <script>
-// ==================== 初始化與資料庫 ====================
 const ROOM = "bali0423";
-let members = ["小明","小紅","阿偉","老王","小麗","大壯","美美","小杰","婷婷","老李"];
+const members = ["小明","小紅","阿偉","老王","小麗","大壯","美美","小杰","婷婷","老李"];
+const EXCHANGE_RATES = { IDR: 0.0021, TWD: 1 };
+
 let expenses = [];
-let currentType = 0; 
-let currentImageURL = null;
+let currentType = 0;
+let db;
 
 const firebaseConfig = {
   apiKey: "AIzaSyBew5dNVApJOgfkn_cb6B7nJMFgP80qAXY",
   authDomain: "bali0423.firebaseapp.com",
   projectId: "bali0423",
-  storageBucket: "bali0423.firebasestorage.app",
   databaseURL: "https://bali0423-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const storage = firebase.storage();
-
 function init() {
-    showLoading(true);
-    const roomRef = db.ref(`rooms/${ROOM}`);
-    
-    roomRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            if (data.members) members = data.members;
-            if (data.expenses) {
-                expenses = Object.values(data.expenses).sort((a, b) => b.timestamp - a.timestamp);
-            } else {
-                expenses = [];
-            }
-            renderAll();
+    try {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
         }
+        db = firebase.database();
+        
+        // 檢查連線狀態
+        const connectedRef = db.ref(".info/connected");
+        connectedRef.on("value", (snap) => {
+          if (snap.val() === true) {
+            console.log("Connected to Firebase");
+          } else {
+            console.log("Disconnected from Firebase");
+          }
+        });
+
+        // 讀取數據
+        db.ref(`rooms/${ROOM}/expenses`).on('value', (snapshot) => {
+            const data = snapshot.val();
+            expenses = data ? Object.values(data).sort((a, b) => b.timestamp - a.timestamp) : [];
+            renderAll();
+            showLoading(false);
+        }, (err) => {
+            console.error("Firebase Error:", err);
+            document.getElementById('loadingStatus').innerText = "連線失敗，請檢查規則是否已發布";
+        });
+
+        setTimeout(() => showLoading(false), 5000);
+    } catch (e) {
+        console.error("Init Error:", e);
         showLoading(false);
-    });
+    }
 }
 
 function renderAll() {
-    renderMemberSelection();
     renderPayerSelect();
+    renderMemberSelection();
     renderExpenseList();
     renderSettlement();
     renderDeletedList();
 }
 
 function renderPayerSelect() {
-    const select = document.getElementById('payer');
-    select.innerHTML = members.map(m => `<option value="${m}">${m}</option>`).join('');
+    const el = document.getElementById('payer');
+    if(el) el.innerHTML = members.map(m => `<option value="${m}">${m}</option>`).join('');
 }
 
 function renderMemberSelection() {
-    const list = document.getElementById('memberList');
-    list.innerHTML = members.map(m => `
-        <div onclick="toggleMemberSelect(this)" class="member-chip flex items-center gap-2 p-3 rounded-2xl bg-white border border-slate-100 cursor-pointer transition-all hover:bg-indigo-50">
-            <div class="check-box w-5 h-5 rounded-md border-2 border-slate-200 flex items-center justify-center transition-all">
-                <i class="fa-solid fa-check text-[10px] text-white hidden"></i>
-            </div>
-            <span class="text-sm font-bold text-slate-600">${m}</span>
-            <input type="checkbox" value="${m}" class="hidden">
+    const el = document.getElementById('memberList');
+    if(!el || el.children.length > 0) return;
+    el.innerHTML = members.map(m => `
+        <div onclick="toggleMemberSelect(this)" class="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-transparent cursor-pointer transition-all">
+            <input type="checkbox" value="${m}" class="w-4 h-4 rounded text-indigo-600 pointer-events-none">
+            <span class="text-xs font-bold text-slate-600">${m}</span>
         </div>
     `).join('');
 }
 
 function toggleMemberSelect(el) {
     const cb = el.querySelector('input');
-    const box = el.querySelector('.check-box');
-    const icon = el.querySelector('i');
-    
     cb.checked = !cb.checked;
-    if (cb.checked) {
-        el.classList.add('bg-indigo-50', 'border-indigo-200');
-        box.classList.add('bg-indigo-600', 'border-indigo-600');
-        icon.classList.remove('hidden');
-    } else {
-        el.classList.remove('bg-indigo-50', 'border-indigo-200');
-        box.classList.remove('bg-indigo-600', 'border-indigo-600');
-        icon.classList.add('hidden');
-    }
+    el.classList.toggle('bg-indigo-50', cb.checked);
+    el.classList.toggle('border-indigo-200', cb.checked);
 }
 
-function selectAll(bool) {
-    const chips = document.querySelectorAll('.member-chip');
-    chips.forEach(chip => {
-        const cb = chip.querySelector('input');
-        if (cb.checked !== bool) toggleMemberSelect(chip);
+function toggleAllMembers() {
+    const inputs = document.querySelectorAll('#memberList input');
+    const allChecked = Array.from(inputs).every(i => i.checked);
+    document.querySelectorAll('#memberList div').forEach(div => {
+        const cb = div.querySelector('input');
+        cb.checked = !allChecked;
+        div.classList.toggle('bg-indigo-50', !allChecked);
+        div.classList.toggle('border-indigo-200', !allChecked);
     });
-}
-
-function setType(type) {
-    currentType = type;
-    [0, 1, 2].forEach(i => {
-        const btn = document.getElementById(`typeBtn${i}`);
-        if (i === type) {
-            btn.classList.add('bg-white', 'shadow-sm', 'text-indigo-600');
-            btn.classList.remove('text-slate-500');
-        } else {
-            btn.classList.remove('bg-white', 'shadow-sm', 'text-indigo-600');
-            btn.classList.add('text-slate-500');
-        }
-    });
-}
-
-document.getElementById('cameraInput').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const preview = document.getElementById('preview');
-    preview.src = URL.createObjectURL(file);
-    preview.classList.remove('hidden');
-
-    try {
-        const ref = storage.ref(`bali0423/photos/${Date.now()}-${file.name}`);
-        const snapshot = await ref.put(file);
-        currentImageURL = await ref.getDownloadURL();
-        showToast("圖片上傳成功");
-    } catch (err) {
-        alert("上傳失敗: " + err.message);
-    }
-});
-
-const EXCHANGE_RATES = { IDR: 0.0021, USD: 32.2, TWD: 1 };
-
-async function addExpense() {
-    const title = document.getElementById('title').value.trim();
-    const amount = parseFloat(document.getElementById('amount').value);
-    const currency = document.getElementById('currency').value;
-    const payer = document.getElementById('payer').value;
-    const checked = document.querySelectorAll('#memberList input:checked');
-    const participants = Array.from(checked).map(c => c.value);
-
-    if (!title || isNaN(amount)) return alert("請輸入項目名稱與金額");
-    if (participants.length === 0) return alert("請至少選擇一位分攤成員");
-
-    showLoading(true);
-    const converted = Math.round(amount * EXCHANGE_RATES[currency]);
-    
-    const expenseData = {
-        id: Date.now().toString(),
-        title,
-        amount,
-        currency,
-        payer,
-        participants,
-        type: currentType,
-        convertedAmount: converted,
-        photo: currentImageURL,
-        isDeleted: false,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-    };
-
-    try {
-        await db.ref(`rooms/${ROOM}/expenses/${expenseData.id}`).set(expenseData);
-        resetForm();
-        showToast("記錄已儲存");
-        switchTab(1);
-    } catch (err) {
-        alert("儲存失敗: " + err.message);
-    } finally {
-        showLoading(false);
-    }
-}
-
-function renderExpenseList() {
-    const container = document.getElementById('expenseList');
-    const activeExpenses = expenses.filter(e => !e.isDeleted);
-    
-    if (activeExpenses.length === 0) {
-        container.innerHTML = `<div class="text-center py-20 text-slate-400 font-medium">尚無帳單紀錄</div>`;
-        return;
-    }
-
-    container.innerHTML = activeExpenses.map(exp => `
-        <div class="glass-card overflow-hidden">
-            <div class="p-4 flex justify-between items-start">
-                <div>
-                    <h3 class="font-bold text-slate-800">${exp.title}</h3>
-                    <div class="text-[10px] flex gap-2 mt-1">
-                        <span class="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-black">${exp.payer} 付款</span>
-                        <span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">${exp.currency} ${exp.amount.toLocaleString()}</span>
-                        <span class="text-slate-400 font-normal">≈ NT$ ${exp.convertedAmount}</span>
-                    </div>
-                </div>
-                <button onclick="setDeleteStatus('${exp.id}', true)" class="text-slate-300 hover:text-red-400 p-2 transition-all">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
-            </div>
-            <div class="px-4 pb-4">
-                <p class="text-[10px] text-slate-400">分攤人: ${exp.participants.join(', ')}</p>
-                ${exp.photo ? `<img src="${exp.photo}" class="mt-3 w-full h-48 object-cover rounded-xl border border-slate-100 shadow-sm" onclick="window.open('${exp.photo}')">` : ''}
-            </div>
-        </div>
-    `).join('');
-}
-
-function renderDeletedList() {
-    const container = document.getElementById('deletedList');
-    const deletedExpenses = expenses.filter(e => e.isDeleted);
-    
-    if (deletedExpenses.length === 0) {
-        container.innerHTML = `<div class="text-center py-20 text-slate-400 font-medium">沒有已刪除的紀錄</div>`;
-        return;
-    }
-
-    container.innerHTML = deletedExpenses.map(exp => `
-        <div class="glass-card overflow-hidden opacity-70 grayscale-[0.5]">
-            <div class="p-4 flex justify-between items-center">
-                <div>
-                    <h3 class="font-bold text-slate-600 line-through">${exp.title}</h3>
-                    <p class="text-[10px] text-slate-400">${exp.currency} ${exp.amount.toLocaleString()} · ${exp.payer}</p>
-                </div>
-                <button onclick="setDeleteStatus('${exp.id}', false)" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-all">
-                    恢復
-                </button>
-            </div>
-        </div>
-    `).join('');
-}
-
-async function setDeleteStatus(id, isDeleted) {
-    if (isDeleted && !confirm("確定將此帳單移至回收站？")) return;
-    try {
-        await db.ref(`rooms/${ROOM}/expenses/${id}/isDeleted`).set(isDeleted);
-        showToast(isDeleted ? "已移至回收站" : "已恢復紀錄");
-    } catch (err) {
-        alert("操作失敗: " + err.message);
-    }
-}
-
-function renderSettlement() {
-    let publicBalance = 0;
-    const balances = {};
-    members.forEach(m => balances[m] = { spent: 0, owe: 0 });
-
-    expenses.forEach(exp => {
-        if (exp.isDeleted) return;
-        const amt = exp.convertedAmount;
-        if (exp.type === 1) { 
-            publicBalance -= exp.amount;
-        } else if (exp.type === 2) { 
-            publicBalance += exp.amount;
-        } else { 
-            balances[exp.payer].spent += amt;
-            const perPerson = amt / (exp.participants.length || 1);
-            exp.participants.forEach(p => {
-                if (balances[p]) balances[p].owe += perPerson;
-            });
-        }
-    });
-
-    document.getElementById('settlementStats').innerHTML = `
-        <div class="bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden">
-            <div class="relative z-10">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">印尼盾公費餘額</p>
-                <h2 class="text-4xl font-black mt-1">Rp ${Math.round(publicBalance).toLocaleString()}</h2>
-            </div>
-            <i class="fa-solid fa-vault absolute right-[-10px] bottom-[-10px] text-8xl text-white/5"></i>
-        </div>
-    `;
-
-    document.getElementById('balanceList').innerHTML = members.map(m => {
-        const net = Math.round(balances[m].spent - balances[m].owe);
-        const isPlus = net >= 0;
-        return `
-            <div class="glass-card p-4 flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500">${m[0]}</div>
-                    <div>
-                        <p class="font-bold text-sm">${m}</p>
-                        <p class="text-[10px] text-slate-400">支 ${Math.round(balances[m].spent)} | 收 ${Math.round(balances[m].owe)}</p>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <p class="font-black text-lg ${isPlus ? 'text-emerald-500' : 'text-rose-500'}">${isPlus ? '+' : ''}${net}</p>
-                    <p class="text-[9px] font-bold text-slate-300 uppercase">TWD NET</p>
-                </div>
-            </div>
-        `;
-    }).join('');
 }
 
 function switchTab(n) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === n));
     document.getElementById('page' + n).classList.add('active');
-    // 切換分頁時回到頂部
-    document.querySelector('.main-content').scrollTop = 0;
+}
+
+function setType(type) {
+    currentType = type;
+    [0,1,2].forEach(i => {
+        const btn = document.getElementById(`typeBtn${i}`);
+        if(btn) {
+            btn.classList.toggle('bg-white', i === type);
+            btn.classList.toggle('shadow-sm', i === type);
+            btn.classList.toggle('text-indigo-600', i === type);
+            btn.classList.toggle('text-slate-500', i !== type);
+        }
+    });
+}
+
+async function addExpense() {
+    const title = document.getElementById('title').value.trim();
+    const amount = parseFloat(document.getElementById('amount').value);
+    const currency = document.getElementById('currency').value;
+    const payer = document.getElementById('payer').value;
+    const participants = Array.from(document.querySelectorAll('#memberList input:checked')).map(c => c.value);
+
+    if (!title || isNaN(amount) || participants.length === 0) {
+        return alert("請填寫名稱、金額並選取成員");
+    }
+
+    showLoading(true);
+    const converted = Math.round(amount * EXCHANGE_RATES[currency]);
+    const id = Date.now().toString();
+
+    try {
+        await db.ref(`rooms/${ROOM}/expenses/${id}`).set({
+            id, title, amount, currency, payer, participants,
+            type: currentType,
+            convertedAmount: converted,
+            isDeleted: false,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+        resetForm();
+        switchTab(1);
+        showToast("儲存成功");
+    } catch (e) {
+        console.error("Write Error:", e);
+        alert("儲存失敗，請檢查網路或 Firebase 權限");
+    }
+    showLoading(false);
+}
+
+function renderExpenseList() {
+    const container = document.getElementById('expenseList');
+    const items = expenses.filter(e => !e.isDeleted);
+    if (!items.length) {
+        container.innerHTML = `<div class="text-center py-20 text-slate-300 font-bold">暫無資料</div>`;
+        return;
+    }
+    container.innerHTML = items.map(exp => `
+        <div class="glass-card">
+            <div class="flex justify-between items-start">
+                <div class="flex-1">
+                    <h4 class="font-bold text-slate-800">${exp.title}</h4>
+                    <p class="text-[10px] font-bold text-indigo-500 mt-0.5">${exp.payer} 付款</p>
+                    <div class="flex flex-wrap gap-1 mt-2">
+                        ${exp.participants.map(p => `<span class="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-400">${p}</span>`).join('')}
+                    </div>
+                </div>
+                <div class="text-right ml-2">
+                    <p class="font-black text-slate-900">${exp.currency} ${exp.amount.toLocaleString()}</p>
+                    <p class="text-[9px] text-slate-400 font-bold">≈ NT$ ${exp.convertedAmount}</p>
+                    <button onclick="setDel('${exp.id}', true)" class="mt-3 text-[10px] text-rose-400 font-bold">刪除</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderSettlement() {
+    let publicBal = 0;
+    const bal = {};
+    members.forEach(m => bal[m] = { spent: 0, owe: 0 });
+
+    expenses.filter(e => !e.isDeleted).forEach(exp => {
+        if (exp.type === 1) publicBal -= exp.amount;
+        else if (exp.type === 2) publicBal += exp.amount;
+        else {
+            bal[exp.payer].spent += exp.convertedAmount;
+            const per = exp.convertedAmount / exp.participants.length;
+            exp.participants.forEach(p => { if(bal[p]) bal[p].owe += per; });
+        }
+    });
+
+    document.getElementById('settlementStats').innerHTML = `
+        <div class="bg-indigo-600 rounded-3xl p-6 text-white shadow-lg">
+            <p class="text-[10px] font-black opacity-60 uppercase tracking-widest">公費餘額 (IDR)</p>
+            <h2 class="text-3xl font-black mt-1">Rp ${Math.round(publicBal).toLocaleString()}</h2>
+        </div>
+    `;
+
+    document.getElementById('balanceList').innerHTML = members.map(m => {
+        const net = Math.round(bal[m].spent - bal[m].owe);
+        return `
+            <div class="glass-card flex justify-between items-center py-4">
+                <span class="font-bold text-slate-700 text-sm">${m}</span>
+                <p class="font-black ${net >= 0 ? 'text-emerald-500' : 'text-rose-500'}">${net >= 0 ? '+' : ''}${net}</p>
+            </div>
+        `;
+    }).join('');
+}
+
+async function setDel(id, bool) {
+    if (bool && !confirm("確定刪除此筆紀錄？")) return;
+    try {
+        await db.ref(`rooms/${ROOM}/expenses/${id}/isDeleted`).set(bool);
+    } catch (e) { alert("操作失敗"); }
+}
+
+function renderDeletedList() {
+    const items = expenses.filter(e => e.isDeleted);
+    const container = document.getElementById('deletedList');
+    if(!items.length) { container.innerHTML = `<p class="text-center text-slate-300 py-10">回收站為空</p>`; return; }
+    container.innerHTML = items.map(exp => `
+        <div class="glass-card opacity-50 flex justify-between items-center py-3">
+            <span class="font-bold text-sm text-slate-500">${exp.title}</span>
+            <button onclick="setDel('${exp.id}', false)" class="text-indigo-600 font-bold text-xs">恢復</button>
+        </div>
+    `).join('');
 }
 
 function resetForm() {
     document.getElementById('title').value = '';
     document.getElementById('amount').value = '';
-    document.getElementById('preview').classList.add('hidden');
-    currentImageURL = null;
-    selectAll(false);
-}
-
-function addMember() {
-    const input = document.getElementById('newMemberInput');
-    const name = input.value.trim();
-    if (name && !members.includes(name)) {
-        members.push(name);
-        db.ref(`rooms/${ROOM}/members`).set(members);
-        input.value = '';
-        showToast(`已新增成員: ${name}`);
-    }
+    document.querySelectorAll('#memberList input').forEach(cb => cb.checked = false);
+    document.querySelectorAll('#memberList div').forEach(div => div.classList.remove('bg-indigo-50','border-indigo-200'));
 }
 
 function showToast(msg) {
     const t = document.getElementById('toast');
-    document.getElementById('toastMsg').innerText = msg;
-    t.classList.remove('opacity-0', 'pointer-events-none');
-    t.classList.add('opacity-100');
-    setTimeout(() => {
-        t.classList.remove('opacity-100');
-        t.classList.add('opacity-0', 'pointer-events-none');
-    }, 2500);
+    t.innerText = msg;
+    t.classList.replace('opacity-0', 'opacity-100');
+    setTimeout(() => t.classList.replace('opacity-100', 'opacity-0'), 2000);
 }
 
 function showLoading(bool) {
-    document.getElementById('loading').classList.toggle('hidden', !bool);
+    const el = document.getElementById('loading');
+    if(el) el.classList.toggle('hidden', !bool);
 }
+
+window.onerror = function(message, source, lineno, colno, error) {
+  console.log("捕獲到全局錯誤: " + message);
+  return false;
+};
 
 window.onload = init;
 </script>
