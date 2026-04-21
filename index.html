@@ -2,371 +2,521 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>🌴 巴厘島分攤 bali0423</title>
-  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>巴厘島分攤 bali0423</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" crossorigin="anonymous">
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
   
-  <!-- 使用 Compat 版本 SDK，並加入 crossorigin 解決 Script error 屏蔽問題 -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" crossorigin="anonymous"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js" crossorigin="anonymous"></script>
-
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
-    
-    body { 
-      font-family: 'Noto Sans TC', system-ui, -apple-system, sans-serif; 
-      -webkit-tap-highlight-color: transparent;
-      margin: 0; padding: 0; overflow: hidden;
-      background-color: #0f172a;
-    }
-    
-    .app-container {
-      display: flex; flex-direction: column; height: 100vh; width: 100%;
-      max-width: 450px; margin: 0 auto; background: #ffffff; position: relative;
-    }
-
-    .tab-btn.active { color: #4f46e5; font-weight: 700; border-bottom: 4px solid #4f46e5; }
-    .main-content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #f8fafc; padding: 20px; }
+    body { font-family: system-ui, -apple-system, sans-serif; }
+    .tab-btn.active { @apply border-b-4 border-violet-600 text-violet-600 font-bold; }
+    .main-content { @apply flex-1 overflow-y-auto -webkit-overflow-scrolling-touch; }
     .page { display: none; }
     .page.active { display: block; }
-    .glass-card { background: white; border: 1px solid #f1f5f9; border-radius: 24px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 16px; }
-    
-    .main-content::-webkit-scrollbar { width: 0px; }
+    .expense-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .expense-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
+    .photo { max-height: 280px; }
+    .skeleton { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .balance-positive { color: #10b981; }
+    .balance-negative { color: #ef4444; }
   </style>
 </head>
-<body>
+<body class="bg-gradient-to-br from-indigo-50 to-violet-50 min-h-screen">
 
-  <div class="app-container shadow-2xl">
-    <!-- Header -->
-    <header class="bg-gradient-to-r from-indigo-600 to-violet-600 text-white p-6 pt-10 shrink-0">
-      <div class="flex justify-between items-center">
-        <div>
-          <h1 class="text-xl font-black tracking-tight">BALI 2024</h1>
-          <p class="text-[10px] opacity-80 font-bold uppercase tracking-widest">Settlement System</p>
-        </div>
-        <i class="fa-solid fa-umbrella-beach text-2xl opacity-50"></i>
+<div class="max-w-lg mx-auto bg-white h-screen flex flex-col shadow-2xl overflow-hidden">
+
+  <!-- Header -->
+  <div class="bg-gradient-to-r from-violet-600 to-purple-600 text-white p-5">
+    <div class="flex items-center gap-4">
+      <div class="text-4xl">🌴</div>
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">巴厘島分攤</h1>
+        <p class="text-violet-100 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-users"></i> 10人旅行 · <span class="font-mono text-xs">bali0423</span>
+        </p>
       </div>
-    </header>
+    </div>
+  </div>
 
-    <!-- 導覽列 -->
-    <nav class="flex bg-white border-b border-slate-100 z-30 shrink-0">
-      <button onclick="switchTab(0)" class="tab-btn active flex-1 py-4 text-[11px]" id="tab0">
-        <i class="fa-solid fa-edit mb-1 block text-lg"></i>記帳
-      </button>
-      <button onclick="switchTab(1)" class="tab-btn flex-1 py-4 text-[11px]" id="tab1">
-        <i class="fa-solid fa-list mb-1 block text-lg"></i>帳單
-      </button>
-      <button onclick="switchTab(2)" class="tab-btn flex-1 py-4 text-[11px]" id="tab2">
-        <i class="fa-solid fa-calculator mb-1 block text-lg"></i>結算
-      </button>
-      <button onclick="switchTab(3)" class="tab-btn flex-1 py-4 text-[11px]" id="tab3">
-        <i class="fa-solid fa-trash mb-1 block text-lg"></i>回收
-      </button>
-    </nav>
+  <!-- Tabs -->
+  <div class="flex bg-white border-b sticky top-0 z-20 text-sm font-medium shadow-sm">
+    <button onclick="switchTab(0)" class="tab-btn active flex-1 py-4" id="tab0">📝 記帳</button>
+    <button onclick="switchTab(1)" class="tab-btn flex-1 py-4" id="tab1">📋 帳單</button>
+    <button onclick="switchTab(2)" class="tab-btn flex-1 py-4" id="tab2">💰 結算</button>
+    <button onclick="switchTab(3)" class="tab-btn flex-1 py-4" id="tab3">🗑️ 已刪</button>
+  </div>
 
-    <!-- 主內容區 -->
-    <main class="main-content">
-      <div id="page0" class="page active space-y-4">
-        <div class="flex bg-slate-100 p-1 rounded-2xl">
-          <button onclick="setType(0)" id="typeBtn0" class="flex-1 py-3 rounded-xl font-bold bg-white shadow-sm text-indigo-600 text-sm">個人付款</button>
-          <button onclick="setType(1)" id="typeBtn1" class="flex-1 py-3 rounded-xl font-bold text-slate-500 text-sm">公費支出</button>
-          <button onclick="setType(2)" id="typeBtn2" class="flex-1 py-3 rounded-xl font-bold text-slate-500 text-sm">公費存入</button>
-        </div>
+  <div class="main-content p-5 space-y-6 bg-gray-50">
 
-        <div class="glass-card space-y-4">
-          <input id="title" class="w-full bg-slate-50 border-none rounded-xl px-4 py-4 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="項目名稱">
-          <div class="grid grid-cols-2 gap-2">
-            <input id="amount" type="number" inputmode="decimal" class="w-full bg-slate-50 border-none rounded-xl px-4 py-4" placeholder="金額">
-            <select id="currency" class="w-full bg-slate-50 border-none rounded-xl px-2 py-4 font-bold">
-              <option value="IDR">印尼盾 IDR</option>
-              <option value="TWD">台幣 TWD</option>
-            </select>
-          </div>
-          <div>
-            <label class="text-[10px] font-bold text-slate-400 mb-1 block">付款人</label>
-            <select id="payer" class="w-full bg-slate-100 border-none rounded-xl px-4 py-4 font-bold text-indigo-600"></select>
-          </div>
-        </div>
-
-        <div class="glass-card space-y-3">
-          <div class="flex justify-between items-center">
-            <h3 class="font-bold text-sm text-slate-700">分攤成員</h3>
-            <button onclick="toggleAllMembers()" class="text-[10px] text-indigo-600 font-bold">全選/取消</button>
-          </div>
-          <div id="memberList" class="grid grid-cols-2 gap-2"></div>
-        </div>
-
-        <button onclick="addExpense()" class="w-full bg-indigo-600 text-white font-black py-5 rounded-3xl text-lg shadow-lg active:scale-95 transition-transform">
-          儲存紀錄
+    <!-- ==================== 記帳頁 (Tab 0) ==================== -->
+    <div id="page0" class="page active space-y-6">
+      <!-- 類型選擇 -->
+      <div class="grid grid-cols-3 gap-2 bg-white p-1.5 rounded-3xl shadow-inner">
+        <button onclick="setType(0)" id="type0" class="type-btn active py-3 rounded-2xl font-semibold text-sm flex flex-col items-center gap-1 bg-white shadow">
+          <i class="fa-solid fa-wallet text-violet-600"></i>
+          <span>個人</span>
+        </button>
+        <button onclick="setType(1)" id="type1" class="type-btn py-3 rounded-2xl font-semibold text-sm flex flex-col items-center gap-1">
+          <i class="fa-solid fa-users text-emerald-600"></i>
+          <span>公費支出</span>
+        </button>
+        <button onclick="setType(2)" id="type2" class="type-btn py-3 rounded-2xl font-semibold text-sm flex flex-col items-center gap-1">
+          <i class="fa-solid fa-hand-holding-dollar text-amber-600"></i>
+          <span>公費收入</span>
         </button>
       </div>
 
-      <div id="page1" class="page"><div id="expenseList" class="pb-10 space-y-3"></div></div>
-      <div id="page2" class="page space-y-4"><div id="settlementStats"></div><div id="balanceList" class="pb-10 space-y-2"></div></div>
-      <div id="page3" class="page space-y-3"><div id="deletedList" class="pb-10"></div></div>
-    </main>
+      <input id="title" type="text" placeholder="例如：海鮮大餐、計程車、SPA" 
+             class="w-full px-6 py-5 rounded-3xl border border-gray-200 focus:border-violet-500 focus:ring-4 focus:ring-violet-100 text-lg">
 
-    <!-- 載入動畫 -->
-    <div id="loading" class="absolute inset-0 bg-white/95 z-[100] flex flex-col items-center justify-center">
-        <div class="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p id="loadingStatus" class="text-indigo-600 font-bold text-sm">連線資料庫中...</p>
-        <button onclick="showLoading(false)" class="mt-8 text-[10px] text-slate-400 underline">手動進入</button>
+      <div class="grid grid-cols-2 gap-4">
+        <input id="amount" type="number" step="0.01" placeholder="金額" 
+               class="w-full px-6 py-5 rounded-3xl border border-gray-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 text-xl font-semibold">
+        <select id="currency" class="w-full px-6 py-5 rounded-3xl border border-gray-200 focus:border-emerald-500 text-lg">
+          <option value="IDR">IDR 印尼盾</option>
+          <option value="TWD">TWD 新台幣</option>
+          <option value="USD">USD 美元</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-600 mb-2">支付者</label>
+        <select id="payer" class="w-full px-6 py-5 rounded-3xl border border-gray-200 text-lg"></select>
+      </div>
+
+      <div>
+        <div class="flex justify-between items-center mb-3">
+          <label class="block text-sm font-semibold text-gray-600" id="shareTitle">分攤成員</label>
+          <div class="flex gap-2">
+            <button onclick="selectAll()" class="text-xs px-4 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl font-medium">全選</button>
+            <button onclick="clearAll()" class="text-xs px-4 py-1.5 bg-gray-100 text-gray-600 rounded-xl font-medium">清除</button>
+          </div>
+        </div>
+        <div id="memberList" class="grid grid-cols-2 gap-3"></div>
+      </div>
+
+      <!-- 快速金額 -->
+      <div class="flex gap-2 flex-wrap">
+        <button onclick="quickAmount(100000)" class="text-xs px-4 py-2 bg-white border border-gray-200 rounded-2xl">10萬盾</button>
+        <button onclick="quickAmount(200000)" class="text-xs px-4 py-2 bg-white border border-gray-200 rounded-2xl">20萬盾</button>
+        <button onclick="quickAmount(500000)" class="text-xs px-4 py-2 bg-white border border-gray-200 rounded-2xl">50萬盾</button>
+        <button onclick="quickAmount(1000000)" class="text-xs px-4 py-2 bg-white border border-gray-200 rounded-2xl">100萬盾</button>
+      </div>
+
+      <!-- 拍照 -->
+      <div class="space-y-2">
+        <label class="text-sm font-semibold text-gray-600">📸 小票照片（選填）</label>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+        <button onclick="takePhoto()" 
+                class="w-full border-2 border-dashed border-violet-300 hover:border-violet-400 rounded-3xl py-12 text-violet-400 hover:text-violet-600 transition-all">
+          <i class="fa-solid fa-camera text-4xl mb-2"></i>
+          <p class="text-sm">點擊拍照上傳收據</p>
+        </button>
+        <img id="preview" class="hidden w-full rounded-3xl shadow-lg">
+      </div>
+
+      <button onclick="addExpense()" 
+              class="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold py-6 rounded-3xl text-xl shadow-xl active:scale-95 transition-all">
+        <i class="fa-solid fa-check mr-2"></i> 記錄這筆帳
+      </button>
     </div>
 
-    <!-- 通知 -->
-    <div id="toast" class="fixed bottom-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full text-xs font-bold z-[110] opacity-0 pointer-events-none transition-all"></div>
+    <!-- 帳單頁 -->
+    <div id="page1" class="page"><div id="expenseList" class="space-y-4"></div></div>
+
+    <!-- 結算頁 -->
+    <div id="page2" class="page">
+      <div id="balancePanel" class="space-y-6"></div>
+    </div>
+
+    <!-- 已刪除頁 -->
+    <div id="page3" class="page"><div id="deletedList" class="space-y-4"></div></div>
   </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-6 py-4 rounded-3xl shadow-2xl hidden flex items-center gap-3 z-50">
+  <i class="fa-solid fa-circle-check"></i>
+  <span id="toastText" class="font-medium"></span>
+</div>
 
 <script>
-const ROOM = "bali0423";
-const members = ["小明","小紅","阿偉","老王","小麗","大壯","美美","小杰","婷婷","老李"];
-const EXCHANGE_RATES = { IDR: 0.0021, TWD: 1 };
-
-let expenses = [];
-let currentType = 0;
-let db;
-
+// ==================== Firebase 配置 ====================
 const firebaseConfig = {
   apiKey: "AIzaSyBew5dNVApJOgfkn_cb6B7nJMFgP80qAXY",
   authDomain: "bali0423.firebaseapp.com",
   projectId: "bali0423",
+  storageBucket: "bali0423.firebasestorage.app",
+  messagingSenderId: "908628168588",
+  appId: "1:908628168588:web:85b870627121191bfdd0a9",
   databaseURL: "https://bali0423-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
-function init() {
-    try {
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        db = firebase.database();
-        
-        // 檢查連線狀態
-        const connectedRef = db.ref(".info/connected");
-        connectedRef.on("value", (snap) => {
-          if (snap.val() === true) {
-            console.log("Connected to Firebase");
-          } else {
-            console.log("Disconnected from Firebase");
-          }
-        });
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const storage = firebase.storage();
 
-        // 讀取數據
-        db.ref(`rooms/${ROOM}/expenses`).on('value', (snapshot) => {
-            const data = snapshot.val();
-            expenses = data ? Object.values(data).sort((a, b) => b.timestamp - a.timestamp) : [];
-            renderAll();
-            showLoading(false);
-        }, (err) => {
-            console.error("Firebase Error:", err);
-            document.getElementById('loadingStatus').innerText = "連線失敗，請檢查規則是否已發布";
-        });
+const ROOM = "bali0423";
+let members = ["小明","小紅","阿偉","老王","小麗","大壯","美美","小杰","婷婷","老李"];
+let expenses = {};
+let currentType = 0; // 0:個人 1:公費支出 2:公費收入
+let currentImageURL = null;
+let rateCache = {};
 
-        setTimeout(() => showLoading(false), 5000);
-    } catch (e) {
-        console.error("Init Error:", e);
-        showLoading(false);
+// ==================== 初始化 ====================
+async function init() {
+  showLoading(true);
+  renderMembers();
+
+  const roomRef = db.ref(`rooms/${ROOM}`);
+  
+  roomRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      members = data.members || members;
+      expenses = data.expenses || {};
     }
-}
-
-function renderAll() {
-    renderPayerSelect();
-    renderMemberSelection();
-    renderExpenseList();
-    renderSettlement();
-    renderDeletedList();
-}
-
-function renderPayerSelect() {
-    const el = document.getElementById('payer');
-    if(el) el.innerHTML = members.map(m => `<option value="${m}">${m}</option>`).join('');
-}
-
-function renderMemberSelection() {
-    const el = document.getElementById('memberList');
-    if(!el || el.children.length > 0) return;
-    el.innerHTML = members.map(m => `
-        <div onclick="toggleMemberSelect(this)" class="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-transparent cursor-pointer transition-all">
-            <input type="checkbox" value="${m}" class="w-4 h-4 rounded text-indigo-600 pointer-events-none">
-            <span class="text-xs font-bold text-slate-600">${m}</span>
-        </div>
-    `).join('');
-}
-
-function toggleMemberSelect(el) {
-    const cb = el.querySelector('input');
-    cb.checked = !cb.checked;
-    el.classList.toggle('bg-indigo-50', cb.checked);
-    el.classList.toggle('border-indigo-200', cb.checked);
-}
-
-function toggleAllMembers() {
-    const inputs = document.querySelectorAll('#memberList input');
-    const allChecked = Array.from(inputs).every(i => i.checked);
-    document.querySelectorAll('#memberList div').forEach(div => {
-        const cb = div.querySelector('input');
-        cb.checked = !allChecked;
-        div.classList.toggle('bg-indigo-50', !allChecked);
-        div.classList.toggle('border-indigo-200', !allChecked);
-    });
-}
-
-function switchTab(n) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === n));
-    document.getElementById('page' + n).classList.add('active');
-}
-
-function setType(type) {
-    currentType = type;
-    [0,1,2].forEach(i => {
-        const btn = document.getElementById(`typeBtn${i}`);
-        if(btn) {
-            btn.classList.toggle('bg-white', i === type);
-            btn.classList.toggle('shadow-sm', i === type);
-            btn.classList.toggle('text-indigo-600', i === type);
-            btn.classList.toggle('text-slate-500', i !== type);
-        }
-    });
-}
-
-async function addExpense() {
-    const title = document.getElementById('title').value.trim();
-    const amount = parseFloat(document.getElementById('amount').value);
-    const currency = document.getElementById('currency').value;
-    const payer = document.getElementById('payer').value;
-    const participants = Array.from(document.querySelectorAll('#memberList input:checked')).map(c => c.value);
-
-    if (!title || isNaN(amount) || participants.length === 0) {
-        return alert("請填寫名稱、金額並選取成員");
-    }
-
-    showLoading(true);
-    const converted = Math.round(amount * EXCHANGE_RATES[currency]);
-    const id = Date.now().toString();
-
-    try {
-        await db.ref(`rooms/${ROOM}/expenses/${id}`).set({
-            id, title, amount, currency, payer, participants,
-            type: currentType,
-            convertedAmount: converted,
-            isDeleted: false,
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        });
-        resetForm();
-        switchTab(1);
-        showToast("儲存成功");
-    } catch (e) {
-        console.error("Write Error:", e);
-        alert("儲存失敗，請檢查網路或 Firebase 權限");
-    }
+    renderMembers();
+    renderCurrentPage();
     showLoading(false);
+  });
+
+  preloadRates();
 }
 
-function renderExpenseList() {
-    const container = document.getElementById('expenseList');
-    const items = expenses.filter(e => !e.isDeleted);
-    if (!items.length) {
-        container.innerHTML = `<div class="text-center py-20 text-slate-300 font-bold">暫無資料</div>`;
-        return;
-    }
-    container.innerHTML = items.map(exp => `
-        <div class="glass-card">
-            <div class="flex justify-between items-start">
-                <div class="flex-1">
-                    <h4 class="font-bold text-slate-800">${exp.title}</h4>
-                    <p class="text-[10px] font-bold text-indigo-500 mt-0.5">${exp.payer} 付款</p>
-                    <div class="flex flex-wrap gap-1 mt-2">
-                        ${exp.participants.map(p => `<span class="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-400">${p}</span>`).join('')}
-                    </div>
-                </div>
-                <div class="text-right ml-2">
-                    <p class="font-black text-slate-900">${exp.currency} ${exp.amount.toLocaleString()}</p>
-                    <p class="text-[9px] text-slate-400 font-bold">≈ NT$ ${exp.convertedAmount}</p>
-                    <button onclick="setDel('${exp.id}', true)" class="mt-3 text-[10px] text-rose-400 font-bold">刪除</button>
-                </div>
-            </div>
-        </div>
-    `).join('');
+// ==================== 匯率 ====================
+async function getRate(currency) {
+  if (rateCache[currency]) return rateCache[currency];
+  
+  try {
+    const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${currency}`);
+    const data = await res.json();
+    rateCache[currency] = data.rates.TWD || 1;
+    return rateCache[currency];
+  } catch {
+    const fallback = { IDR: 0.00205, USD: 32.2, TWD: 1 };
+    rateCache[currency] = fallback[currency] || 1;
+    return rateCache[currency];
+  }
 }
 
-function renderSettlement() {
-    let publicBal = 0;
-    const bal = {};
-    members.forEach(m => bal[m] = { spent: 0, owe: 0 });
-
-    expenses.filter(e => !e.isDeleted).forEach(exp => {
-        if (exp.type === 1) publicBal -= exp.amount;
-        else if (exp.type === 2) publicBal += exp.amount;
-        else {
-            bal[exp.payer].spent += exp.convertedAmount;
-            const per = exp.convertedAmount / exp.participants.length;
-            exp.participants.forEach(p => { if(bal[p]) bal[p].owe += per; });
-        }
-    });
-
-    document.getElementById('settlementStats').innerHTML = `
-        <div class="bg-indigo-600 rounded-3xl p-6 text-white shadow-lg">
-            <p class="text-[10px] font-black opacity-60 uppercase tracking-widest">公費餘額 (IDR)</p>
-            <h2 class="text-3xl font-black mt-1">Rp ${Math.round(publicBal).toLocaleString()}</h2>
-        </div>
-    `;
-
-    document.getElementById('balanceList').innerHTML = members.map(m => {
-        const net = Math.round(bal[m].spent - bal[m].owe);
-        return `
-            <div class="glass-card flex justify-between items-center py-4">
-                <span class="font-bold text-slate-700 text-sm">${m}</span>
-                <p class="font-black ${net >= 0 ? 'text-emerald-500' : 'text-rose-500'}">${net >= 0 ? '+' : ''}${net}</p>
-            </div>
-        `;
-    }).join('');
+async function preloadRates() {
+  await Promise.all(['IDR','USD','TWD'].map(c => getRate(c)));
 }
 
-async function setDel(id, bool) {
-    if (bool && !confirm("確定刪除此筆紀錄？")) return;
-    try {
-        await db.ref(`rooms/${ROOM}/expenses/${id}/isDeleted`).set(bool);
-    } catch (e) { alert("操作失敗"); }
+// ==================== UI 渲染 ====================
+function renderMembers() {
+  const payerSelect = document.getElementById("payer");
+  payerSelect.innerHTML = members.map(m => `<option value="${m}">${m}</option>`).join('');
+
+  const container = document.getElementById("memberList");
+  container.innerHTML = members.map(m => `
+    <div onclick="toggleMember(this)" data-name="${m}" 
+         class="member-item flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-4 py-4 cursor-pointer active:bg-violet-50">
+      <input type="checkbox" value="${m}" class="w-5 h-5 accent-violet-600 pointer-events-none">
+      <span class="font-medium">${m}</span>
+    </div>
+  `).join('');
 }
 
-function renderDeletedList() {
-    const items = expenses.filter(e => e.isDeleted);
-    const container = document.getElementById('deletedList');
-    if(!items.length) { container.innerHTML = `<p class="text-center text-slate-300 py-10">回收站為空</p>`; return; }
-    container.innerHTML = items.map(exp => `
-        <div class="glass-card opacity-50 flex justify-between items-center py-3">
-            <span class="font-bold text-sm text-slate-500">${exp.title}</span>
-            <button onclick="setDel('${exp.id}', false)" class="text-indigo-600 font-bold text-xs">恢復</button>
-        </div>
-    `).join('');
-}
-
-function resetForm() {
-    document.getElementById('title').value = '';
-    document.getElementById('amount').value = '';
-    document.querySelectorAll('#memberList input').forEach(cb => cb.checked = false);
-    document.querySelectorAll('#memberList div').forEach(div => div.classList.remove('bg-indigo-50','border-indigo-200'));
-}
-
-function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.innerText = msg;
-    t.classList.replace('opacity-0', 'opacity-100');
-    setTimeout(() => t.classList.replace('opacity-100', 'opacity-0'), 2000);
-}
-
-function showLoading(bool) {
-    const el = document.getElementById('loading');
-    if(el) el.classList.toggle('hidden', !bool);
-}
-
-window.onerror = function(message, source, lineno, colno, error) {
-  console.log("捕獲到全局錯誤: " + message);
-  return false;
+window.toggleMember = function(el) {
+  const cb = el.querySelector('input');
+  cb.checked = !cb.checked;
+  el.classList.toggle('!border-violet-500', cb.checked);
+  el.classList.toggle('!bg-violet-50', cb.checked);
 };
 
+window.setType = function(type) {
+  currentType = type;
+  document.querySelectorAll('.type-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === type);
+    btn.classList.toggle('!bg-white', i === type);
+    btn.classList.toggle('shadow', i === type);
+  });
+
+  const titles = ['誰要分攤？', '哪些人分攤這筆公費？', '向哪些人收取？'];
+  document.getElementById('shareTitle').textContent = titles[type];
+};
+
+window.selectAll = () => document.querySelectorAll('.member-item input').forEach(cb => {
+  cb.checked = true;
+  cb.parentElement.classList.add('!border-violet-500', '!bg-violet-50');
+});
+
+window.clearAll = () => document.querySelectorAll('.member-item input').forEach(cb => {
+  cb.checked = false;
+  cb.parentElement.classList.remove('!border-violet-500', '!bg-violet-50');
+});
+
+window.quickAmount = (amt) => {
+  document.getElementById('amount').value = amt;
+};
+
+// ==================== 拍照 ====================
+window.takePhoto = () => document.getElementById('cameraInput').click();
+
+document.getElementById('cameraInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const preview = document.getElementById('preview');
+  preview.src = URL.createObjectURL(file);
+  preview.classList.remove('hidden');
+
+  const ref = storage.ref(`photos/${ROOM}/${Date.now()}-${file.name}`);
+  await ref.put(file);
+  currentImageURL = await ref.getDownloadURL();
+});
+
+// ==================== 新增帳單 ====================
+window.addExpense = async () => {
+  const title = document.getElementById('title').value.trim();
+  const amount = parseFloat(document.getElementById('amount').value);
+  const currency = document.getElementById('currency').value;
+  const payer = document.getElementById('payer').value;
+
+  if (!title || !amount || !payer) return alert('請填寫完整資訊');
+
+  const checkedBoxes = document.querySelectorAll('#memberList input:checked');
+  let participants = Array.from(checkedBoxes).map(cb => cb.value);
+  
+  if (participants.length === 0) participants = [payer];
+
+  const rate = await getRate(currency);
+  const convertedAmount = Math.round(amount * rate);
+
+  const expenseRef = db.ref(`rooms/${ROOM}/expenses`).push();
+  const expenseData = {
+    id: expenseRef.key,
+    title,
+    amount,
+    currency,
+    convertedAmount,
+    payer,
+    participants,
+    type: currentType,                 // 0=個人, 1=公費支出, 2=公費收入
+    photoURL: currentImageURL,
+    createdAt: firebase.database.ServerValue.TIMESTAMP,
+    isDeleted: false
+  };
+
+  await expenseRef.set(expenseData);
+  
+  showToast('✅ 記錄成功，已即時同步');
+  clearForm();
+  switchTab(1);
+};
+
+function clearForm() {
+  document.getElementById('title').value = '';
+  document.getElementById('amount').value = '';
+  document.getElementById('preview').classList.add('hidden');
+  currentImageURL = null;
+  document.getElementById('cameraInput').value = '';
+  clearAll();
+}
+
+// ==================== 渲染函數 ====================
+function renderCurrentPage() {
+  const activeTab = document.querySelector('.tab-btn.active').id.replace('tab','');
+  if (activeTab === '1') renderExpenses();
+  if (activeTab === '2') renderSettlement();
+  if (activeTab === '3') renderDeleted();
+}
+
+function renderExpenses() {
+  const container = document.getElementById('expenseList');
+  const list = Object.values(expenses).filter(e => !e.isDeleted).sort((a,b) => b.createdAt - a.createdAt);
+
+  if (list.length === 0) {
+    container.innerHTML = `<div class="text-center py-20 text-gray-400">尚無帳單</div>`;
+    return;
+  }
+
+  container.innerHTML = list.map(exp => `
+    <div class="expense-card bg-white rounded-3xl shadow overflow-hidden">
+      <div class="p-5">
+        <div class="flex justify-between">
+          <div class="font-bold text-lg">${exp.title}</div>
+          <div class="text-right">
+            <div class="font-semibold">${exp.currency} ${exp.amount.toLocaleString()}</div>
+            <div class="text-xs text-gray-500">≈ NT$ ${exp.convertedAmount}</div>
+          </div>
+        </div>
+        <div class="mt-2 text-sm text-gray-600">
+          支付者：<span class="font-medium">${exp.payer}</span>
+          ${exp.type === 1 ? ' <span class="text-emerald-600">(公費)</span>' : ''}
+          ${exp.type === 2 ? ' <span class="text-amber-600">(收入)</span>' : ''}
+        </div>
+        <div class="text-xs text-gray-500 mt-1">分攤：${exp.participants.join('、')}</div>
+      </div>
+      ${exp.photoURL ? `<img src="${exp.photoURL}" class="w-full photo object-contain bg-gray-50">` : ''}
+      <div class="flex border-t text-sm">
+        <button onclick="editExpense('${exp.id}')" class="flex-1 py-4 text-violet-600 hover:bg-violet-50 font-medium">編輯</button>
+        <button onclick="deleteExpense('${exp.id}')" class="flex-1 py-4 text-red-500 hover:bg-red-50 font-medium">刪除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ==================== 結算核心邏輯（大幅優化） ====================
+async function renderSettlement() {
+  const container = document.getElementById('balancePanel');
+  let html = '';
+
+  // 統計每個人「已支付」與「應分攤」
+  const balance = {};
+  members.forEach(m => balance[m] = { paid: 0, shouldPay: 0 });
+
+  Object.values(expenses).forEach(exp => {
+    if (exp.isDeleted) return;
+    const amt = exp.convertedAmount || 0;
+
+    // 已支付
+    if (balance[exp.payer]) balance[exp.payer].paid += amt;
+
+    if (exp.type === 0) { // 個人支出
+      const share = amt / exp.participants.length;
+      exp.participants.forEach(p => {
+        if (balance[p]) balance[p].shouldPay += share;
+      });
+    } 
+    else if (exp.type === 1) { // 公費支出（全體平分）
+      const share = amt / members.length;
+      members.forEach(m => balance[m].shouldPay += share);
+    } 
+    else if (exp.type === 2) { // 公費收入
+      const share = amt / exp.participants.length;
+      exp.participants.forEach(p => balance[p].shouldPay -= share); // 收入 = 減少應付
+    }
+  });
+
+  // 計算淨額
+  let totalPositive = 0;
+  const results = members.map(name => {
+    const net = Math.round(balance[name].paid - balance[name].shouldPay);
+    if (net > 0) totalPositive += net;
+    return { name, paid: Math.round(balance[name].paid), shouldPay: Math.round(balance[name].shouldPay), net };
+  });
+
+  // 總覽卡片
+  html += `
+    <div class="bg-gradient-to-br from-violet-600 to-purple-600 text-white rounded-3xl p-8 text-center">
+      <div class="text-sm opacity-75">公費餘額</div>
+      <div class="text-5xl font-black my-2">NT$ ${Math.round(totalPositive)}</div>
+      <div class="text-sm opacity-75">待結算總金額</div>
+    </div>`;
+
+  // 個人明細
+  html += `<div class="mt-6 space-y-4">`;
+  results.forEach(({name, paid, shouldPay, net}) => {
+    const isPositive = net >= 0;
+    html += `
+      <div class="bg-white rounded-3xl p-6 shadow">
+        <div class="font-bold text-xl">${name}</div>
+        <div class="grid grid-cols-3 gap-4 mt-6 text-center">
+          <div>
+            <div class="text-2xl font-bold text-gray-800">NT$${paid}</div>
+            <div class="text-xs text-gray-500">已支付</div>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-gray-800">NT$${shouldPay}</div>
+            <div class="text-xs text-gray-500">應分攤</div>
+          </div>
+          <div class="${isPositive ? 'balance-positive' : 'balance-negative'}">
+            <div class="text-3xl font-black">${isPositive ? '+' : ''}${net}</div>
+            <div class="text-xs">結餘</div>
+          </div>
+        </div>
+      </div>`;
+  });
+  html += `</div>`;
+
+  container.innerHTML = html;
+}
+
+function renderDeleted() {
+  const container = document.getElementById('deletedList');
+  const deleted = Object.values(expenses).filter(e => e.isDeleted);
+
+  if (deleted.length === 0) {
+    container.innerHTML = `<div class="text-center py-20 text-gray-400">沒有已刪除的記錄</div>`;
+    return;
+  }
+
+  container.innerHTML = deleted.map(exp => `
+    <div class="bg-gray-100 rounded-3xl p-5 opacity-75">
+      <div class="line-through text-lg">${exp.title}</div>
+      <div class="text-sm text-gray-500">${exp.payer} · ${exp.currency}${exp.amount}</div>
+      <button onclick="restoreExpense('${exp.id}')" class="mt-4 text-violet-600 text-sm font-medium">恢復此筆</button>
+    </div>
+  `).join('');
+}
+
+// ==================== 編輯 / 刪除 / 恢復 ====================
+window.editExpense = async (id) => {
+  const exp = expenses[id];
+  if (!exp) return;
+
+  const newTitle = prompt("修改項目名稱", exp.title);
+  if (newTitle === null) return;
+
+  const newAmount = parseFloat(prompt("修改金額", exp.amount));
+  if (isNaN(newAmount)) return alert("金額錯誤");
+
+  const rate = await getRate(exp.currency);
+
+  await db.ref(`rooms/${ROOM}/expenses/${id}`).update({
+    title: newTitle,
+    amount: newAmount,
+    convertedAmount: Math.round(newAmount * rate)
+  });
+
+  showToast('已更新');
+};
+
+window.deleteExpense = async (id) => {
+  if (!confirm('確定刪除？')) return;
+  await db.ref(`rooms/${ROOM}/expenses/${id}`).update({ isDeleted: true });
+  showToast('已移至已刪除');
+};
+
+window.restoreExpense = async (id) => {
+  await db.ref(`rooms/${ROOM}/expenses/${id}`).update({ isDeleted: false });
+  showToast('已恢復');
+};
+
+// ==================== 工具 ====================
+window.switchTab = function(n) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===n));
+  document.getElementById(`page${n}`).classList.add('active');
+  if (n !== 0) renderCurrentPage();
+};
+
+window.addMember = function() {
+  const name = prompt("新成員姓名");
+  if (!name || members.includes(name)) return;
+  members.push(name);
+  db.ref(`rooms/${ROOM}/members`).set(members);
+};
+
+function showToast(text) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastText').textContent = text;
+  toast.classList.remove('hidden');
+  setTimeout(() => toast.classList.add('hidden'), 2500);
+}
+
+function showLoading(show) {
+  // 可自行加入 loading 畫面
+}
+
+// ==================== 啟動 ====================
 window.onload = init;
 </script>
 </body>
