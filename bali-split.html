@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>巴厘島分攤 bali0423</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; }
+    .tab-btn.active { @apply border-b-4 border-violet-500 text-violet-600 font-bold; }
+    .main-content { @apply flex-1 overflow-y-auto -webkit-overflow-scrolling-touch; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .member-grid { @apply grid grid-cols-2 gap-3; }
+    .photo { @apply max-h-64 w-full object-contain bg-gray-50 rounded-2xl; }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .skeleton { @apply bg-gray-200 animate-pulse rounded-xl h-4; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 to-violet-50 min-h-screen">
+  <div class="max-w-lg mx-auto bg-white/80 backdrop-blur-xl h-screen flex flex-col shadow-2xl">
+
+    <!-- 標頭 -->
+    <div class="bg-gradient-to-r from-violet-600 to-purple-600 text-white p-5 shadow-xl">
+      <div class="flex items-center gap-4">
+        <div class="text-4xl">🌴</div>
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">巴厘島分攤</h1>
+          <p class="text-violet-100 text-sm font-medium flex items-center gap-1">
+            <i class="fa-solid fa-users"></i> 10人旅行 · bali0423
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab -->
+    <div class="flex bg-white/50 backdrop-blur-sm border-b border-violet-100 sticky top-0 z-20 text-sm shadow-sm">
+      <button onclick="switchTab(0)" class="tab-btn active flex-1 py-4 px-2" id="tab0">
+        <i class="fa-solid fa-receipt mr-1"></i>記帳
+      </button>
+      <button onclick="switchTab(1)" class="tab-btn flex-1 py-4 px-2" id="tab1">
+        <i class="fa-solid fa-list mr-1"></i>帳單
+      </button>
+      <button onclick="switchTab(2)" class="tab-btn flex-1 py-4 px-2" id="tab2">
+        <i class="fa-solid fa-balance-scale mr-1"></i>結算
+      </button>
+      <button onclick="switchTab(3)" class="tab-btn flex-1 py-4 px-2" id="tab3">
+        <i class="fa-solid fa-trash mr-1"></i>已刪除
+      </button>
+    </div>
+
+    <div class="main-content p-6 space-y-6">
+      <!-- 記帳頁 -->
+      <div id="page0" class="page active space-y-5 fade-in">
+        <!-- 支出類型 -->
+        <div class="flex bg-gray-50/50 p-1 rounded-3xl backdrop-blur-sm">
+          <button onclick="setType(0)" id="type0" class="flex-1 py-4 rounded-3xl font-semibold bg-white/80 shadow-lg border-2 border-white/50 active:scale-95 transition-all">
+            <i class="fa-solid fa-wallet text-violet-600"></i> 個人支出
+          </button>
+          <button onclick="setType(1)" id="type1" class="flex-1 py-4 rounded-3xl font-semibold text-gray-600 active:scale-95 transition-all">
+            <i class="fa-solid fa-users text-emerald-600"></i> 公費支出
+          </button>
+          <button onclick="setType(2)" id="type2" class="flex-1 py-4 rounded-3xl font-semibold text-gray-600 active:scale-95 transition-all">
+            <i class="fa-solid fa-plus text-blue-600"></i> 公費收入
+          </button>
+        </div>
+
+        <input id="title" class="w-full border-2 border-gray-200 rounded-3xl px-6 py-5 text-lg placeholder-gray-500 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 transition-all" placeholder="🍕 項目名稱（如：晚餐、海鮮大餐）">
+
+        <div class="grid grid-cols-2 gap-4">
+          <input id="amount" type="number" step="0.01" class="border-2 border-gray-200 rounded-3xl px-6 py-5 text-lg focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 transition-all" placeholder="金額">
+          <select id="currency" class="border-2 border-gray-200 rounded-3xl px-6 py-5 text-lg focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 transition-all">
+            <option value="IDR">印尼盾 IDR</option>
+            <option value="USD">美元 USD</option>
+            <option value="TWD">新台幣 TWD</option>
+          </select>
+        </div>
+
+        <div class="space-y-3">
+          <label class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            <i class="fa-solid fa-hand-holding-dollar text-violet-500"></i> 由誰支付？
+          </label>
+          <select id="payer" class="w-full border-2 border-gray-200 rounded-3xl px-6 py-5 text-lg focus:border-violet-400 focus:ring-4 focus:ring-violet-100 transition-all"></select>
+        </div>
+
+        <div id="shareSection" class="space-y-4">
+          <div class="flex justify-between items-center">
+            <label id="shareLabel" class="font-semibold text-gray-700 flex items-center gap-2">
+              <i class="fa-solid fa-share text-indigo-500"></i> 誰要分攤？
+            </label>
+            <div class="flex gap-2">
+              <button onclick="selectAll()" class="text-emerald-600 text-sm font-semibold px-3 py-1 rounded-xl bg-emerald-100 hover:bg-emerald-200 transition-all">全選</button>
+              <button onclick="clearAll()" class="text-gray-500 text-sm font-semibold px-3 py-1 rounded-xl bg-gray-100 hover:bg-gray-200 transition-all">取消</button>
+            </div>
+          </div>
+          <div id="memberList" class="member-grid"></div>
+        </div>
+
+        <!-- 新增成員 -->
+        <div class="flex gap-3 p-4 bg-blue-50/50 rounded-3xl">
+          <input id="newMemberInput" placeholder="👤 新增成員姓名" class="flex-1 border-2 border-blue-200 rounded-2xl px-5 py-4 focus:border-blue-400 bg-white">
+          <button onclick="addMember()" class="bg-blue-600 text-white px-8 rounded-2xl font-semibold py-4 hover:bg-blue-700 active:scale-95 transition-all shadow-lg">
+            <i class="fa-solid fa-plus"></i> 新增
+          </button>
+        </div>
+
+        <!-- 拍照 -->
+        <div class="space-y-3">
+          <label class="text-sm font-semibold text-gray-700">📸 小票拍照（可選）</label>
+          <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+          <button onclick="takePhoto()" class="w-full border-2 border-dashed border-violet-300 rounded-3xl py-14 text-gray-500 hover:border-violet-400 hover:bg-violet-50/50 transition-all text-xl backdrop-blur-sm">
+            <i class="fa-solid fa-camera text-3xl mb-2 block"></i> 點擊拍照上傳收據
+          </button>
+          <img id="preview" class="hidden w-full rounded-3xl shadow-xl photo">
+        </div>
+
+        <button onclick="addExpense()" class="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold py-6 rounded-3xl text-xl shadow-2xl active:scale-95 transition-all">
+          <i class="fa-solid fa-save mr-2"></i> 記錄這筆帳
+        </button>
+      </div>
+
+      <!-- 其他頁面保持簡潔 -->
+      <div id="page1" class="page hidden"><div id="expenseList" class="space-y-4"></div></div>
+      <div id="page2" class="page hidden"><div id="balancePanel" class="space-y-6"></div></div>
+      <div id="page3" class="page hidden"><div id="deletedList" class="space-y-4"></div></div>
+    </div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div id="successToast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-8 py-5 rounded-3xl shadow-2xl flex items-center gap-4 z-50 hidden fade-in">
+    <i class="fa-solid fa-check-circle text-2xl"></i>
+    <div>
+      <div class="font-bold text-lg">記錄成功！</div>
+      <div class="text-sm opacity-90">已同步到所有設備</div>
+    </div>
+  </div>
+
+  <!-- 加載中 -->
+  <div id="loading" class="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="text-center space-y-4">
+      <i class="fa-solid fa-spinner fa-spin text-4xl text-violet-500"></i>
+      <p class="text-lg font-semibold text-gray-700">載入中...</p>
+    </div>
+  </div>
+
+<script>
+// ==================== Firebase 配置（已啟用Realtime Database） ====================
+const firebaseConfig = {
+  apiKey: "AIzaSyBew5dNVApJOgfkn_cb6B7nJMFgP80qAXY",
+  authDomain: "bali0423.firebaseapp.com",
+  projectId: "bali0423",
+  storageBucket: "bali0423.firebasestorage.app",
+  messagingSenderId: "908628168588",
+  appId: "1:908628168588:web:85b870627121191bfdd0a9",
+  databaseURL: "https://bali0423-default-rtdb.asia-southeast1.firebasedatabase.app/"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database(); // 使用Realtime Database
+const storage = firebase.storage();
+const firestore = firebase.firestore(); // 保留相片用
+
+const ROOM = "bali0423";
+let members = ["小明","小紅","阿偉","老王","小麗","大壯","美美","小杰","婷婷","老李"];
+let expenses = [];
+let rateCache = {};
+let currentType = 0;
+let currentImageURL = null;
+
+// ==================== 初始化與實時同步 ====================
+async function init() {
+  showLoading(true);
+  renderMembers();
+  
+  // 實時監聽所有數據（多設備同步）
+  const roomRef = db.ref(`rooms/${ROOM}`);
+  roomRef.on('value', async (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      members = data.members || members;
+      expenses = data.expenses || [];
+    }
+    renderMembers();
+    renderCurrentPage();
+    showLoading(false);
+  });
+  
+  // 匯率快取
+  preloadRates();
+}
+
+async function preloadRates() {
+  const currencies = ['IDR', 'USD', 'TWD'];
+  for (const currency of currencies) {
+    await getRate(currency);
+  }
+}
+
+// ==================== UI 渲染 ====================
+function renderMembers() {
+  const payerSelect = document.getElementById("payer");
+  payerSelect.innerHTML = members.map(m => `<option value="${m}">${m}</option>`).join('');
+  
+  const memberList = document.getElementById("memberList");
+  memberList.innerHTML = members.map(m => `
+    <div onclick="toggleMember(this)" class="flex items-center gap-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl px-5 py-4 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]">
+      <input type="checkbox" value="${m}" class="w-6 h-6 accent-violet-600">
+      <span class="font-medium text-gray-800">${m}</span>
+    </div>
+  `).join('');
+}
+
+window.toggleMember = function(el) {
+  const cb = el.querySelector('input[type="checkbox"]');
+  cb.checked = !cb.checked;
+  el.style.transform = cb.checked ? 'scale(1.02)' : 'scale(1)';
+};
+
+window.setType = function(type) {
+  currentType = type;
+  ['type0','type1','type2'].forEach((id,i) => {
+    const btn = document.getElementById(id);
+    if (i === type) {
+      btn.classList.add('bg-white/80', 'shadow-lg', 'border-violet-400', 'text-violet-700');
+      btn.querySelector('i').classList.add('text-violet-600');
+    } else {
+      btn.classList.remove('bg-white/80', 'shadow-lg', 'border-violet-400', 'text-violet-700');
+      btn.querySelector('i').classList.remove('text-violet-600');
+    }
+  });
+
+  const shareLabel = document.getElementById('shareLabel');
+  const labels = {
+    0: '誰要分攤？',
+    1: '哪些人要分攤？',
+    2: '向哪些人收取？'
+  };
+  shareLabel.innerHTML = `<i class="fa-solid fa-share text-indigo-500"></i> ${labels[type]}`;
+};
+
+window.selectAll = () => {
+  document.querySelectorAll('#memberList input[type="checkbox"]').forEach(cb => cb.checked = true);
+  document.querySelectorAll('#memberList > div').forEach(el => el.style.transform = 'scale(1.02)');
+};
+
+window.clearAll = () => {
+  document.querySelectorAll('#memberList input[type="checkbox"]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('#memberList > div').forEach(el => el.style.transform = 'scale(1)');
+};
+
+// ==================== 拍照功能 ====================
+window.takePhoto = () => document.getElementById('cameraInput').click();
+
+document.getElementById('cameraInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const preview = document.getElementById('preview');
+  preview.src = URL.createObjectURL(file);
+  preview.classList.remove('hidden');
+  
+  try {
+    const ref = storage.ref(`bali0423/photos/${Date.now()}-${file.name}`);
+    const snapshot = await ref.put(file);
+    currentImageURL = await ref.getDownloadURL();
+  } catch (error) {
+    console.error('上傳失敗:', error);
+    alert('照片上傳失敗，請重試');
+  }
+});
+
+// ==================== 匯率轉換 ====================
+async function getRate(from) {
+  if (rateCache[from]) return rateCache[from];
+  
+  try {
+    const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${from}`);
+    const data = await res.json();
+    rateCache[from] = data.rates.TWD || 1;
+    return rateCache[from];
+  } catch {
+    const approx = {IDR: 0.00205, USD: 32.1, TWD: 1};
+    rateCache[from] = approx[from] || 1;
+    return rateCache[from];
+  }
+}
+
+// ==================== 記帳功能（關鍵改進） ====================
+window.addExpense = async () => {
+  const title = document.getElementById('title').value.trim();
+  const amountInput = document.getElementById('amount').value;
+  const currency = document.getElementById('currency').value;
+  const payer = document.getElementById('payer').value;
+
+  if (!title || !amountInput || !payer) {
+    alert('請填寫完整資訊！');
+    return;
+  }
+
+  const amount = parseFloat(amountInput);
+  const checked = document.querySelectorAll('#memberList input:checked');
+  let participants = Array.from(checked).map(cb => cb.value);
+  
+  if (participants.length === 0) {
+    participants = [payer];
+    alert('未選擇分攤對象，預設由支付者獨攤');
+  }
+
+  // 公費收入：輸入金額 = 每人收取金額
+  let totalAmount = amount;
+  if (currentType === 2) {
+    totalAmount = amount * participants.length;
+  }
+
+  const rate = await getRate(currency);
+  const converted = Math.round(totalAmount * rate);
+  const expenseId = Date.now().toString();
+
+  // 直接寫入Realtime Database（即時同步）
+  const newExpense = {
+    id: expenseId,
+    room: ROOM,
+    title,
+    original_amount: totalAmount,
+    currency,
+    converted_amount: converted,
+    payer,
+    participants,
+    isPublic: currentType !== 0,
+    publicType: currentType === 2 ? "income" : "expense",
+    photo_url: currentImageURL || null,
+    created_at: firebase.database.ServerValue.TIMESTAMP,
+    isDeleted: false
+  };
+
+  try {
+    const roomRef = db.ref(`rooms/${ROOM}`);
+    const snapshot = await roomRef.once('value');
+    const data = snapshot.val() || {};
+    
+    if (!data.expenses) data.expenses = [];
+    data.expenses.unshift(newExpense); // 新增到最前面
+    data.members = members;
+    
+    await roomRef.set(data);
+    
+    showToast('記錄成功！已同步到所有設備');
+    
+    // 清空表單
+    clearForm();
+    switchTab(1);
+    
+  } catch (error) {
+    console.error('記帳失敗:', error);
+    alert('記帳失敗，請檢查網路連線');
+  }
+};
+
+function clearForm() {
+  document.getElementById('title').value = '';
+  document.getElementById('amount').value = '';
+  document.getElementById('preview').classList.add('hidden');
+  currentImageURL = null;
+  document.getElementById('cameraInput').value = '';
+  clearAll();
+}
+
+// ==================== 列表渲染 ====================
+function renderExpenses() {
+  const container = document.getElementById("expenseList");
+  const activeExpenses = expenses.filter(e => !e.isDeleted);
+  
+  if (activeExpenses.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-24 text-gray-400 space-y-4">
+        <i class="fa-solid fa-receipt text-6xl opacity-30"></i>
+        <p class="text-xl font-semibold">尚無帳單記錄</p>
+        <p class="text-sm">點擊右上角「記帳」開始記錄</p>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = activeExpenses.map(exp => `
+    <div class="bg-white/70 backdrop-blur-sm border border-gray-200 rounded-3xl overflow-hidden shadow-xl fade-in">
+      <div class="p-6">
+        <div class="font-bold text-xl mb-1">${exp.title}</div>
+        <div class="flex items-center gap-4 text-sm text-gray-600 mb-2">
+          <span><i class="fa-solid fa-user mr-1"></i>${exp.payer}</span>
+          <span>${exp.currency} ${exp.original_amount.toLocaleString()}</span>
+          <span class="text-xs px-2 py-1 rounded-full bg-violet-100 text-violet-700">
+            ${exp.isPublic ? (exp.publicType === 'income' ? '公費收入' : '公費支出') : '個人'}
+          </span>
+        </div>
+        ${exp.participants?.length ? `<div class="text-xs text-gray-500">參與：${exp.participants.join('、')}</div>` : ''}
+      </div>
+      ${exp.photo_url ? `<img src="${exp.photo_url}" class="photo mx-6 -mt-4" loading="lazy">` : ''}
+      <div class="flex bg-gradient-to-r from-gray-50 to-violet-50 border-t border-gray-100">
+        <button onclick="editExpense('${exp.id}')" class="flex-1 py-4 px-6 text-violet-600 font-semibold hover:bg-violet-50 transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-edit"></i>編輯
+        </button>
+        <button onclick="deleteExpense('${exp.id}')" class="flex-1 py-4 px-6 text-red-500 font-semibold hover:bg-red-50 transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-trash"></i>刪除
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSettlement() {
+  let publicIDR = 0, publicTWD = 0;
+  const personal = {};
+  members.forEach(m => personal[m] = {spent: 0, share: 0});
+
+  expenses.forEach(exp => {
+    if (exp.isDeleted) return;
+    const amt = exp.converted_amount || 0;
+    
+    if (exp.isPublic) {
+      if (exp.publicType === "income") {
+        publicIDR += exp.original_amount;
+        publicTWD += amt;
+      } else {
+        publicIDR -= exp.original_amount;
+        publicTWD -= amt;
+      }
+    } else {
+      personal[exp.payer].spent += amt;
+      const share = amt / (exp.participants?.length || 1);
+      exp.participants.forEach(p => personal[p].share += share);
+    }
+  });
+
+  let html = `
+    <div class="bg-gradient-to-br from-violet-500 to-purple-500 text-white rounded-3xl p-8 text-center shadow-2xl">
+      <div class="text-2xl font-bold mb-2">公費餘額</div>
+      <div class="text-5xl font-black mb-2">Rp ${Math.round(publicIDR).toLocaleString('id-ID')}</div>
+      <div class="text-2xl opacity-90">≈ NT$ ${Math.round(publicTWD)}</div>
+    </div>
+  `;
+
+  html += `<div class="space-y-4 mt-8">
+    <h3 class="font-bold text-xl flex items-center gap-2"><i class="fa-solid fa-chart-line text-violet-500"></i> 個人結餘</h3>`;
+  
+  Object.keys(personal).forEach(name => {
+    const net = Math.round(personal[name].spent - personal[name].share);
+    const color = net >= 0 ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100';
+    html += `
+      <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-200">
+        <div class="font-bold text-lg mb-4">${name}</div>
+        <div class="grid grid-cols-3 gap-4 text-sm">
+          <div class="text-center">
+            <div class="text-2xl font-bold text-gray-800">NT$${Math.round(personal[name].spent)}</div>
+            <div class="text-xs text-gray-500 uppercase tracking-wide">支出</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-gray-800">NT$${Math.round(personal[name].share)}</div>
+            <div class="text-xs text-gray-500 uppercase tracking-wide">分攤</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-black ${color}">${net >= 0 ? '+' : ''}${net}</div>
+            <div class="text-xs text-gray-500 uppercase tracking-wide">淨額</div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  document.getElementById("balancePanel").innerHTML = html;
+}
+
+function renderDeleted() {
+  const container = document.getElementById("deletedList");
+  const deleted = expenses.filter(e => e.isDeleted);
+  
+  if (deleted.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-24 text-gray-400 space-y-4">
+        <i class="fa-solid fa-trash text-6xl opacity-30"></i>
+        <p class="text-lg font-semibold">沒有已刪除的記錄</p>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = deleted.map(exp => `
+    <div class="bg-gray-100/80 backdrop-blur-sm rounded-2xl p-6 opacity-75 border border-gray-300">
+      <div class="line-through font-medium text-lg mb-1">${exp.title}</div>
+      <div class="text-sm text-gray-500">${exp.payer} · ${exp.currency}${exp.original_amount.toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+function renderCurrentPage() {
+  renderExpenses();
+  renderSettlement();
+  renderDeleted();
+}
+
+// ==================== 編輯刪除 ====================
+window.editExpense = async function(id) {
+  const exp = expenses.find(e => e.id === id);
+  if (!exp) return;
+  
+  const newTitle = prompt("修改項目名稱", exp.title);
+  if (newTitle === null) return;
+  
+  const newAmountStr = prompt("修改金額", exp.original_amount);
+  const newAmount = parseFloat(newAmountStr);
+  if (isNaN(newAmount)) return alert("金額格式錯誤");
+  
+  const rate = await getRate(exp.currency);
+  
+  const roomRef = db.ref(`rooms/${ROOM}/expenses`);
+  await roomRef.transaction((expenses) => {
+    if (expenses) {
+      const index = expenses.findIndex(e => e.id === id);
+      if (index !== -1) {
+        expenses[index].title = newTitle;
+        expenses[index].original_amount = newAmount;
+        expenses[index].converted_amount = Math.round(newAmount * rate);
+      }
+    }
+    return expenses;
+  });
+};
+
+window.deleteExpense = async function(id) {
+  if (!confirm("確定要刪除這筆帳單嗎？（可從「已刪除」頁面恢復）")) return;
+  
+  const roomRef = db.ref(`rooms/${ROOM}/expenses`);
+  await roomRef.transaction((expenses) => {
+    if (expenses) {
+      const index = expenses.findIndex(e => e.id === id);
+      if (index !== -1) {
+        expenses[index].isDeleted = true;
+      }
+    }
+    return expenses;
+  });
+  
+  showToast('已移至已刪除');
+};
+
+// ==================== 工具函數 ====================
+window.switchTab = function(n) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===n));
+  document.getElementById('page'+n).classList.add('active');
+  
+  if (n !== 0) renderCurrentPage();
+};
+
+window.addMember = function() {
+  const name = document.getElementById('newMemberInput').value.trim();
+  if (name && !members.includes(name)) {
+    members.push(name);
+    const roomRef = db.ref(`rooms/${ROOM}/members`);
+    roomRef.transaction((currentMembers) => {
+      if (!currentMembers) currentMembers = [];
+      if (!currentMembers.includes(name)) currentMembers.push(name);
+      return currentMembers;
+    });
+    document.getElementById('newMemberInput').value = '';
+    showToast('成員新增成功');
+  }
+};
+
+function showToast(message) {
+  const toast = document.getElementById('successToast');
+  toast.querySelector('div').innerHTML = message;
+  toast.classList.remove('hidden');
+  setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+function showLoading(show) {
+  document.getElementById('loading').classList.toggle('hidden', !show);
+}
+
+// ==================== 初始化 ====================
+window.onload = init;
+</script>
+</body>
+</html>
