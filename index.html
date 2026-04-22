@@ -74,7 +74,7 @@
           <i class="fa-solid fa-umbrella-beach"></i>
         </div>
         <h2 class="text-2xl font-black text-slate-800">BALI 分攤助手</h2>
-        <p class="text-slate-400 text-xs font-bold tracking-widest mt-2 uppercase">名單更新優化版</p>
+        <p class="text-slate-400 text-xs font-bold tracking-widest mt-2 uppercase">自動匯率優化版</p>
       </div>
 
       <div class="space-y-6 w-full">
@@ -169,6 +169,15 @@
       </div>
       
       <div id="page2" class="page space-y-4">
+        <!-- 匯率顯示區塊 -->
+        <div id="rateInfo" class="bg-indigo-50 border border-indigo-100 rounded-2xl p-3 flex justify-between items-center px-5">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span class="text-[10px] font-black text-indigo-900 tracking-wider">即時匯率更新中</span>
+            </div>
+            <div id="rateDisplay" class="text-xs font-black text-indigo-600">IDR/TWD --</div>
+        </div>
+        
         <div id="pubBoard" class="bg-indigo-600 rounded-3xl p-6 shadow-lg text-white transition-all">
             <div class="flex justify-between items-center mb-2">
                 <h3 class="text-xs font-black uppercase opacity-70">公費剩餘餘額</h3>
@@ -227,9 +236,8 @@
 
 <script>
 let ROOM = "";
-// 更新後的成員名單
 const members = ["宇杰", "靜", "聖倫", "孋孋", "丁丁", "宣宣", "殭屍", "Hana", "彥任", "施"];
-const EXCHANGE_RATE = 0.0021; 
+let currentExchangeRate = 0.0021; // 預設底限值
 let expenses = [];
 let currentType = 0;
 let db;
@@ -242,6 +250,40 @@ const firebaseConfig = {
   projectId: "bali0423",
   databaseURL: "https://bali0423-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
+
+// --- 優化：自動獲取實時匯率 (雙重備援 API) ---
+async function fetchExchangeRate() {
+    const rateDisplay = document.getElementById('rateDisplay');
+    const updateRateUI = (val) => {
+        currentExchangeRate = val;
+        if (rateDisplay) rateDisplay.innerText = `1 IDR = ${val.toFixed(5)} TWD`;
+        renderAll();
+    };
+
+    // 嘗試 API 1: exchangerate-api
+    try {
+        const response = await fetch('https://api.exchangerate-api.com/v4/latest/IDR');
+        const data = await response.json();
+        if(data && data.rates && data.rates.TWD) {
+            updateRateUI(data.rates.TWD);
+            return;
+        }
+    } catch (err) {
+        console.warn("API 1 Fail, 嘗試備援 API...");
+    }
+
+    // 嘗試 API 2: open.er-api
+    try {
+        const response = await fetch('https://open.er-api.com/v6/latest/IDR');
+        const data = await response.json();
+        if(data && data.rates && data.rates.TWD) {
+            updateRateUI(data.rates.TWD);
+            return;
+        }
+    } catch (err) {
+        console.error("所有匯率 API 獲取失敗:", err);
+    }
+}
 
 function enterRoom() {
     const val = document.getElementById('roomInput').value.trim();
@@ -428,7 +470,6 @@ async function addExpense() {
         time: Date.now(), deleted: false
     };
 
-    // 優化：立刻清空畫面
     titleEl.value = ""; 
     amountEl.value = ""; 
     removePreview();
@@ -472,7 +513,9 @@ function renderExpenseList() {
         }
 
         const per = parts.length > 0 ? (displayAmt / parts.length).toLocaleString(undefined, {maximumFractionDigits:0}) : 0;
-        const twdValue = exp.currency === "IDR" ? (displayAmt * EXCHANGE_RATE) : displayAmt;
+        
+        // --- 核心：依即時匯率計算 ---
+        const twdValue = exp.currency === "IDR" ? (displayAmt * currentExchangeRate) : displayAmt;
         const twdText = exp.currency === "IDR" ? `<div class="text-[9px] text-slate-400 font-bold">≈ NT$ ${Math.round(twdValue).toLocaleString()}</div>` : '';
 
         const typeLabels = [
@@ -561,8 +604,9 @@ function renderIndividualStats() {
         const parts = exp.participants || [];
         if (parts.length === 0) return;
         
-        const idrRaw = exp.currency === "TWD" ? (exp.amount / EXCHANGE_RATE) : exp.amount;
-        const twdValue = exp.currency === "IDR" ? exp.amount * EXCHANGE_RATE : exp.amount;
+        // --- 核心：統計依即時匯率換算 ---
+        const idrRaw = exp.currency === "TWD" ? (exp.amount / currentExchangeRate) : exp.amount;
+        const twdValue = exp.currency === "IDR" ? exp.amount * currentExchangeRate : exp.amount;
         
         if (exp.type === 2) { 
             pubIDR += idrRaw * parts.length;
@@ -582,7 +626,7 @@ function renderIndividualStats() {
     if(pubIDR < 0) { pubBoard.classList.replace('bg-indigo-600', 'bg-rose-500'); } else { pubBoard.classList.replace('bg-rose-500', 'bg-indigo-600'); }
 
     document.getElementById('pubBalanceIDR').innerText = `IDR ${Math.round(pubIDR).toLocaleString()}`;
-    document.getElementById('pubBalanceTWD').innerText = `≈ NT$ ${Math.round(pubIDR * EXCHANGE_RATE).toLocaleString()}`;
+    document.getElementById('pubBalanceTWD').innerText = `≈ NT$ ${Math.round(pubIDR * currentExchangeRate).toLocaleString()}`;
 
     list.innerHTML = members.map(m => {
         const s = userStats[m];
@@ -622,7 +666,9 @@ function renderSettlement() {
     expenses.filter(e => !e.deleted && !e.settled && e.type === 0).forEach(exp => {
         const parts = exp.participants || [];
         if (parts.length === 0) return;
-        const twd = exp.currency === "IDR" ? exp.amount * EXCHANGE_RATE : exp.amount;
+        
+        // --- 核心：結算依即時匯率換算 ---
+        const twd = exp.currency === "IDR" ? exp.amount * currentExchangeRate : exp.amount;
         const per = twd / parts.length;
         const sb = exp.settledBy || [];
         parts.forEach(p => {
@@ -694,7 +740,12 @@ function showToast(m) {
     t.classList.remove('opacity-0'); t.classList.add('opacity-100');
     setTimeout(() => { t.classList.add('opacity-0'); t.classList.remove('opacity-100'); }, 2000);
 }
-window.onload = () => renderRoomHistory();
+
+window.onload = () => {
+    renderRoomHistory();
+    fetchExchangeRate(); // 初始獲取匯率
+    setInterval(fetchExchangeRate, 600000); // 每 10 分鐘自動背景更新匯率
+};
 </script>
 </body>
 </html>
